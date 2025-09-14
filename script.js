@@ -1,107 +1,131 @@
-// SELECCIÓN DE HORAS
-const hourButtons = document.querySelectorAll('#hours button');
-hourButtons.forEach(btn => {
-  btn.addEventListener('click', () => {
-    btn.classList.toggle('selected');
-  });
-});
+// CONFIGURAR FIREBASE
+const firebaseConfig = {
+  apiKey: "AIzaSyD-OhDPQRecetiYg5ULbE_j7Eta8J6wtfM",
+  authDomain: "reservas-8581a.firebaseapp.com",
+  projectId: "reservas-8581a",
+  storageBucket: "reservas-8581a.firebasestorage.app",
+  messagingSenderId: "466171175031",
+  appId: "1:466171175031:web:73e77f7ed9aa20b6b2e672",
+  measurementId: "G-VB354NGK4M"
+};
 
-// ELEMENTOS DEL DOM
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ELEMENTOS DOM
 const fab = document.getElementById('fab');
+const backFab = document.getElementById('backFab');
 const formPanel = document.getElementById('formPanel');
 const closePanel = document.getElementById('closePanel');
 const reservationForm = document.getElementById('reservationForm');
-const errorMessage = document.getElementById('errorMessage');
+const hoursContainer = document.getElementById('hours');
 const reservationList = document.getElementById('reservationList');
 const emptyMessage = document.getElementById('emptyMessage');
-const objectSelect = document.getElementById('objectSelect');
-const addObjectBtn = document.getElementById('addObjectBtn');
-const newObjectInput = document.getElementById('newObjectInput');
+const errorMessage = document.getElementById('errorMessage');
 
-let reservations = [];
+// HORAS SELECCIONADAS
+let selectedHours = [];
 
-// MOSTRAR PANEL
+// Abrir y cerrar panel
 fab.addEventListener('click', () => {
   formPanel.classList.add('open');
-  fab.classList.add('hidden'); // Oculta FAB
+  fab.classList.add('hidden');
 });
 
-// CERRAR PANEL
 closePanel.addEventListener('click', () => {
   formPanel.classList.remove('open');
-  fab.classList.remove('hidden'); // Muestra FAB
+  fab.classList.remove('hidden');
+  errorMessage.textContent = '';
 });
 
-// AGREGAR NUEVO OBJETO
-addObjectBtn.addEventListener('click', () => {
-  const newObject = newObjectInput.value.trim();
-  if (newObject) {
-    const option = document.createElement('option');
-    option.value = newObject;
-    option.textContent = newObject;
-    objectSelect.appendChild(option);
-    objectSelect.value = newObject;
-    newObjectInput.value = '';
+// Selección de horas
+hoursContainer.addEventListener('click', (e) => {
+  if (e.target.tagName === 'BUTTON') {
+    const hour = e.target.getAttribute('data-hour');
+    e.target.classList.toggle('selected');
+
+    if (selectedHours.includes(hour)) {
+      selectedHours = selectedHours.filter(h => h !== hour);
+    } else {
+      selectedHours.push(hour);
+    }
   }
 });
 
-// CREAR RESERVA
-reservationForm.addEventListener('submit', (e) => {
+// Guardar reserva en Firebase
+reservationForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-
-  const selectedObject = objectSelect.value;
-  const date = document.getElementById('dateInput').value;
-  const professor = document.getElementById('professorInput').value;
-  const selectedHours = Array.from(document.querySelectorAll('#hours button.selected'))
-    .map(btn => btn.dataset.hour);
-
   errorMessage.textContent = '';
 
+  const selectedObject = document.getElementById('objectSelect').value;
+  const date = document.getElementById('dateInput').value;
+  const professor = document.getElementById('professorInput').value.trim();
+
   if (!selectedObject || !date || !professor || selectedHours.length === 0) {
-    errorMessage.textContent = 'Por favor completa todos los campos y selecciona al menos una hora.';
+    errorMessage.textContent = 'Por favor completa todos los campos.';
     return;
   }
 
-  // VALIDAR CONFLICTOS
-  const conflict = reservations.some(res =>
-    res.object === selectedObject &&
-    res.date === date &&
-    res.hours.some(h => selectedHours.includes(h))
-  );
+  // Verificar si la hora está libre
+  const snapshot = await db.collection('reservas')
+    .where('objeto', '==', selectedObject)
+    .where('fecha', '==', date)
+    .get();
 
-  if (conflict) {
-    errorMessage.textContent = 'Error: Este objeto ya está reservado en alguna de las horas seleccionadas.';
-    return;
-  }
-
-  // AGREGAR RESERVA
-  reservations.push({
-    object: selectedObject,
-    date: date,
-    professor: professor,
-    hours: selectedHours
+  let conflict = false;
+  snapshot.forEach(doc => {
+    const data = doc.data();
+    if (data.horas.some(h => selectedHours.includes(h))) {
+      conflict = true;
+    }
   });
 
-  if (emptyMessage) {
-    emptyMessage.style.display = 'none';
+  if (conflict) {
+    errorMessage.textContent = 'Algunas de las horas seleccionadas ya están reservadas.';
+    return;
   }
 
-  // CREAR TARJETA
-  const card = document.createElement('div');
-  card.classList.add('reservation');
-  card.innerHTML = `
-    <h3>${selectedObject}</h3>
-    <p><strong>Profesor:</strong> ${professor}</p>
-    <p><strong>Fecha:</strong> ${date}</p>
-    <p><strong>Horas:</strong> ${selectedHours.join(', ')}</p>
-  `;
-  reservationList.appendChild(card);
+  // Guardar en Firebase
+  await db.collection('reservas').add({
+    objeto: selectedObject,
+    fecha: date,
+    horas: selectedHours,
+    profesor: professor,
+    timestamp: firebase.firestore.FieldValue.serverTimestamp()
+  });
 
-  // RESET FORM
+  // Reset
   reservationForm.reset();
-  hourButtons.forEach(btn => btn.classList.remove('selected'));
+  selectedHours = [];
+  document.querySelectorAll('#hours button').forEach(btn => btn.classList.remove('selected'));
 
-  // CERRAR PANEL Y MOSTRAR FAB
   formPanel.classList.remove('open');
   fab.classList.remove('hidden');
 });
+
+// Escuchar reservas en tiempo real
+db.collection('reservas')
+  .orderBy('timestamp', 'asc')
+  .onSnapshot(snapshot => {
+    reservationList.innerHTML = '';
+
+    if (snapshot.empty) {
+      emptyMessage.style.display = 'block';
+      return;
+    } else {
+      emptyMessage.style.display = 'none';
+    }
+
+    snapshot.forEach(doc => {
+      const reserva = doc.data();
+      const card = document.createElement('div');
+      card.classList.add('reservation');
+      card.innerHTML = `
+        <h3>${reserva.objeto}</h3>
+        <p><strong>Profesor:</strong> ${reserva.profesor}</p>
+        <p><strong>Fecha:</strong> ${reserva.fecha}</p>
+        <p><strong>Horas:</strong> ${reserva.horas.join(', ')}</p>
+      `;
+      reservationList.appendChild(card);
+    });
+  });

@@ -5,16 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reserva de Objetos</title>
   <link rel="stylesheet" href="styles.css">
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
 </head>
 <body>
   <header>
-    <h1>Listado de Reservas</h1>
+    <h1>📅 Reservas de Objetos</h1>
   </header>
 
-  <!-- CONTENIDO PRINCIPAL -->
   <main>
     <section class="reservations-section">
-      
+      <h2>Listado de Reservas</h2>
       <div id="reservationList">
         <p id="emptyMessage" class="empty-message">
           No hay reservas todavía. Presiona el botón ➕ para crear una nueva.
@@ -23,15 +25,13 @@
     </section>
   </main>
 
-  <!-- BOTÓN FLOTANTE VOLVER -->
+  <!-- BOTÓN VOLVER -->
   <a id="backFab" class="fab fab-back" href="#">
     ←
   </a>
 
   <!-- BOTÓN FLOTANTE AGREGAR -->
-  <button id="fab" class="fab">
-    +
-  </button>
+  <button id="fab" class="fab">+</button>
 
   <!-- PANEL DESLIZANTE -->
   <div id="formPanel" class="form-panel">
@@ -40,7 +40,6 @@
       <button id="closePanel" class="close-btn">&times;</button>
     </div>
     <form id="reservationForm" class="reservation-form">
-      <!-- Selección de objeto -->
       <div class="form-group">
         <label for="objectSelect">Objeto</label>
         <select id="objectSelect" required>
@@ -56,15 +55,16 @@
         </select>
       </div>
 
-      
+      <div class="form-group add-object">
+        <input type="text" id="newObjectInput" placeholder="Nuevo objeto">
+        <button type="button" id="addObjectBtn" class="btn-secondary">Agregar</button>
+      </div>
 
-      <!-- Fecha -->
       <div class="form-group">
         <label for="dateInput">Fecha</label>
         <input type="date" id="dateInput" required>
       </div>
 
-      <!-- Horas -->
       <div class="form-group">
         <label>Horas disponibles</label>
         <div id="hours" class="hours-grid">
@@ -77,21 +77,13 @@
         </div>
       </div>
 
-      <!-- Profesor -->
       <div class="form-group">
         <label for="professorInput">Profesor</label>
         <input type="text" id="professorInput" placeholder="Nombre del profesor" required>
       </div>
 
-      <!-- Botón reservar y mensaje de error -->
       <button type="submit" class="btn-primary">Reservar</button>
       <p id="errorMessage" class="error-message"></p>
-
-
-      <div class="form-group add-object">
-        <input type="text" id="newObjectInput" placeholder="Nuevo objeto">
-        <button type="button" id="addObjectBtn" class="btn-secondary">Agregar</button>
-      </div>
     </form>
   </div>
 
