@@ -1,3 +1,40 @@
+// --- SISTEMA DE LOGIN ---
+// Lista de contraseñas válidas
+const validPasswords = ["3456", "6863", "6794"];
+
+// Elementos del DOM del login
+const loginScreen = document.getElementById("loginScreen");
+const loginBtn = document.getElementById("loginBtn");
+const passwordInput = document.getElementById("passwordInput");
+const loginError = document.getElementById("loginError");
+
+// Ocultar la aplicación si no está logueado
+if (localStorage.getItem("isLoggedIn") === "true") {
+  loginScreen.style.display = "none"; // Oculta la pantalla de login
+} else {
+  document.querySelector("main").style.display = "none"; // Oculta la app
+  document.getElementById("fab").style.display = "none";
+}
+
+// Evento de login
+loginBtn.addEventListener("click", () => {
+  const enteredPassword = passwordInput.value.trim();
+
+  if (validPasswords.includes(enteredPassword)) {
+    localStorage.setItem("isLoggedIn", "true");
+    loginScreen.style.display = "none";
+
+    // Mostrar la app
+    document.querySelector("main").style.display = "block";
+    document.getElementById("fab").style.display = "block";
+
+    // Ejecutar limpieza inicial
+    cleanOldReservations();
+  } else {
+    loginError.textContent = "Contraseña incorrecta.";
+  }
+});
+
 // --- CONFIGURAR FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyD1-3Sr2PF4MEhcBA5cZHG-lT1sp8Lk1pg",
@@ -153,15 +190,27 @@ function renderReservation(reservation) {
   reservationList.appendChild(card);
 }
 
-// --- LIMPIAR RESERVAS DE DÍAS PASADOS ---
+// --- LIMPIAR RESERVAS AUTOMÁTICAMENTE ---
 async function cleanOldReservations() {
-  const todayDate = new Date(today);
+  const now = new Date();
+  const currentDate = now.toISOString().split('T')[0];
+  
+  // Hora actual en minutos desde medianoche
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const cutoffMinutes = 14 * 60 + 30; // 14:30 en minutos
 
   const snapshot = await db.collection('reservations').get();
   snapshot.forEach(doc => {
     const res = doc.data();
     const resDate = new Date(res.date);
-    if (resDate < todayDate) {
+    const resDateString = resDate.toISOString().split('T')[0];
+
+    // Eliminar si la fecha es anterior a hoy
+    if (resDateString < currentDate) {
+      db.collection('reservations').doc(doc.id).delete();
+    }
+    // Eliminar si es hoy pero ya pasó de las 14:30
+    else if (resDateString === currentDate && currentMinutes >= cutoffMinutes) {
       db.collection('reservations').doc(doc.id).delete();
     }
   });
